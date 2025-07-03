@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Trash2, X, ShoppingCart, Utensils, Loader2, Bike, AlertCircle, Search, MapPin, CheckCircle } from 'lucide-react';
+import { Trash2, X, ShoppingCart, Utensils, Loader2, Bike, AlertCircle, Search, MapPin, CheckCircle, ShieldOff } from 'lucide-react';
 
 // --- CONFIGURAÇÃO ---
 const AIRTABLE_BASE_ID = 'appp2kokMMFlzbk0y'; 
@@ -7,6 +7,7 @@ const AIRTABLE_PRODUCTS_TABLE_NAME = 'Produtos';
 const AIRTABLE_FEES_TABLE_NAME = 'Taxas';
 const AIRTABLE_TOKEN = 'patsmPSpjBMBujDIc.f051cddbfd1f1f1d7a0c51b50d0b4dcd698c0adba6cc9d137046151c178397ef';
 const WHATSAPP_NUMBER = '5599981092517';
+const STORE_NAME = 'SEU DELIVERY'; // Altere para o nome da sua loja
 
 // --- Componente Principal ---
 export default function App() {
@@ -19,7 +20,6 @@ export default function App() {
     const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
     const [location, setLocation] = useState(null);
-    const [locationStatus, setLocationStatus] = useState('idle'); // idle, loading, success, error
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
 
     useEffect(() => {
@@ -65,7 +65,6 @@ export default function App() {
                     .sort((a, b) => a.neighborhood.localeCompare(b.neighborhood)); 
                 
                 setDeliveryFees(formattedFees);
-                // Abre o modal de localização depois que tudo carregar
                 setIsLocationModalOpen(true);
 
             } catch (err) {
@@ -85,32 +84,6 @@ export default function App() {
         }, 4000);
     };
 
-    const handleGetLocation = () => {
-        if (!navigator.geolocation) {
-            setLocationStatus('error');
-            showToast("Geolocalização não é suportada por este navegador.", 'error');
-            return;
-        }
-    
-        setLocationStatus('loading');
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
-                setLocation({ latitude, longitude });
-                setLocationStatus('success');
-                setIsLocationModalOpen(false); // Fecha o modal após o sucesso
-                showToast("Localização capturada com sucesso!", 'success');
-            },
-            (error) => {
-                setLocationStatus('error');
-                setLocation(null);
-                let msg = "Não foi possível obter a localização. Verifique as permissões do seu navegador.";
-                if (error.code === 1) msg = "Acesso à localização negado. Por favor, habilite nas configurações do seu navegador.";
-                showToast(msg, 'error');
-            }
-        );
-    };
-
     const addToCart = (product) => { setCart(prev => { const i = prev.find(item => item.id === product.id); if (i) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item); return [...prev, { ...product, quantity: 1 }]; }); showToast(`${product.name} adicionado!`); };
     const updateCartQuantity = (id, amount) => { setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: item.quantity + amount } : item).filter(item => item.quantity > 0)); };
     const removeFromCart = (id) => setCart(prev => prev.filter(item => item.id !== id));
@@ -120,7 +93,7 @@ export default function App() {
     return (
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans text-gray-800 dark:text-gray-200">
             <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-20">
-                <nav className="container mx-auto px-4 py-3 flex justify-between items-center"><div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center"><Utensils className="mr-2" /><span>Seu Delivery</span></div><button onClick={openCart} className="relative"><ShoppingCart />{cart.length > 0 && (<span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cart.reduce((a, i) => a + i.quantity, 0)}</span>)}</button></nav>
+                <nav className="container mx-auto px-4 py-3 flex justify-between items-center"><div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 flex items-center"><Utensils className="mr-2" /><span>{STORE_NAME}</span></div><button onClick={openCart} className="relative"><ShoppingCart />{cart.length > 0 && (<span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{cart.reduce((a, i) => a + i.quantity, 0)}</span>)}</button></nav>
             </header>
             <main className="container mx-auto p-4">
                 <h1 className="text-3xl font-bold mb-6 text-center">Nosso Cardápio</h1>
@@ -129,8 +102,8 @@ export default function App() {
                 : products.length === 0 ? (<div className="text-center p-10"><p className="text-lg text-gray-500">Nenhum produto disponível.</p><p className="text-sm text-gray-400 mt-2">Verifique se há produtos na tabela 'Produtos' do Airtable.</p></div>) 
                 : (<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">{products.map(p => (<ProductCard key={p.id} product={p} onAddToCart={addToCart} />))}</div>)}
             </main>
-            <CartModal isOpen={isCartOpen} onClose={closeCart} cart={cart} onUpdateQuantity={updateCartQuantity} onRemove={removeFromCart} whatsappNumber={WHATSAPP_NUMBER} deliveryFees={deliveryFees} onShowToast={showToast} location={location} locationStatus={locationStatus} onGetLocation={handleGetLocation} />
-            <LocationRequestModal isOpen={isLocationModalOpen && !isLoading} onGetLocation={handleGetLocation} onClose={() => setIsLocationModalOpen(false)} locationStatus={locationStatus} />
+            <CartModal isOpen={isCartOpen} onClose={closeCart} cart={cart} onUpdateQuantity={updateCartQuantity} onRemove={removeFromCart} whatsappNumber={WHATSAPP_NUMBER} deliveryFees={deliveryFees} onShowToast={showToast} location={location} />
+            <LocationRequestModal isOpen={isLocationModalOpen && !isLoading} onGetLocation={(status, loc) => { setLocation(loc); }} onClose={() => setIsLocationModalOpen(false)} />
             {toast.show && (<div className={`fixed bottom-5 right-5 text-white py-3 px-5 rounded-lg shadow-lg z-50 flex items-center ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}><AlertCircle className="mr-3" />{toast.message}</div>)}
         </div>
     );
@@ -142,7 +115,25 @@ function ProductCard({ product, onAddToCart }) {
     );
 }
 
-function LocationRequestModal({ isOpen, onClose, onGetLocation, locationStatus }) {
+function LocationRequestModal({ isOpen, onClose, onGetLocation }) {
+    const [status, setStatus] = useState('idle');
+
+    const handleGetLocation = () => {
+        if (!navigator.geolocation) { setStatus('unsupported'); return; }
+        if (!window.isSecureContext) { setStatus('insecure'); return; }
+
+        setStatus('loading');
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                onGetLocation('success', { latitude, longitude });
+                setStatus('success');
+                setTimeout(onClose, 1500);
+            },
+            () => { onGetLocation('error', null); setStatus('error'); }
+        );
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -150,19 +141,26 @@ function LocationRequestModal({ isOpen, onClose, onGetLocation, locationStatus }
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md text-center p-8">
                 <MapPin size={48} className="mx-auto text-indigo-500 mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Bem-vindo(a)!</h2>
-                <p className="text-gray-600 dark:text-gray-300 mb-6">Para calcularmos a taxa de entrega e agilizar seu pedido, precisamos da sua localização.</p>
-                <button onClick={onGetLocation} disabled={locationStatus === 'loading'} className="w-full p-3 text-white rounded-md flex items-center justify-center transition-colors bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400">
-                    {locationStatus === 'loading' ? <Loader2 className="animate-spin mr-2" /> : <MapPin className="mr-2"/>}
+                <p className="text-gray-600 dark:text-gray-300 mb-6">Para agilizar seu pedido, precisamos da sua localização para o entregador.</p>
+                <button onClick={handleGetLocation} disabled={status === 'loading'} className="w-full p-3 text-white rounded-md flex items-center justify-center transition-colors bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400">
+                    {status === 'loading' ? <Loader2 className="animate-spin mr-2" /> : <MapPin className="mr-2"/>}
                     Permitir Localização
                 </button>
-                <button onClick={onClose} className="mt-2 text-sm text-gray-500 hover:underline">Agora não</button>
+                <div className="text-xs text-center mt-4 h-8">
+                    {status === 'success' && <p className="text-green-600 font-semibold flex items-center justify-center"><CheckCircle size={14} className="mr-1"/>Ótimo! Localização capturada.</p>}
+                    {status === 'error' && <p className="text-red-600 font-semibold">Acesso negado. Verifique as permissões do site na barra de endereço do seu navegador.</p>}
+                    {status === 'unsupported' && <p className="text-red-600 font-semibold">Seu navegador não suporta geolocalização.</p>}
+                    {status === 'insecure' && <p className="text-red-600 font-semibold flex items-center justify-center"><ShieldOff size={14} className="mr-1"/> Conexão não segura. O GPS só funciona em sites com HTTPS.</p>}
+                </div>
+                <button onClick={onClose} className="mt-2 text-sm text-gray-500 hover:underline">Continuar sem localização</button>
             </div>
         </div>
     );
 }
 
-function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onRemove, whatsappNumber, deliveryFees, onShowToast, location, locationStatus, onGetLocation }) {
+function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onRemove, whatsappNumber, deliveryFees, onShowToast, location }) {
     const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
     const [address, setAddress] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('Pix');
     const [changeFor, setChangeFor] = useState('');
@@ -199,16 +197,41 @@ function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onRemove, whatsapp
     const handleSendOrder = () => {
         if (cart.length === 0) return onShowToast("Seu carrinho está vazio.", 'error');
         if (!name.trim()) return onShowToast("Por favor, preencha seu nome.", 'error');
+        if (!phone.trim()) return onShowToast("Por favor, preencha seu telefone.", 'error');
         if (!address.trim()) return onShowToast("Por favor, preencha seu endereço.", 'error');
-        if (!location) return onShowToast("Por favor, capture sua localização GPS.", 'error');
         if (!selectedNeighborhood) return onShowToast("Por favor, selecione seu bairro.", 'error');
 
-        const mapsLink = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
-        let message = `*NOVO PEDIDO* 🛍️\n\n*Cliente:* ${name}\n*Endereço:* ${address}\n*Bairro:* ${selectedNeighborhood}\n*Localização GPS:* ${mapsLink}\n\n*Itens do Pedido:*\n`;
+        let changeNeeded = 0;
+        let changeForValue = 0;
+        if (paymentMethod === 'Dinheiro' && changeFor) {
+            changeForValue = parseFloat(changeFor.replace(',', '.'));
+            if (!isNaN(changeForValue) && changeForValue >= total) {
+                changeNeeded = changeForValue - total;
+            }
+        }
+
+        let message = `🍔 *${STORE_NAME.toUpperCase()} - COMANDA DE ENTREGA* 🚛\n\n`;
+        message += `👨‍🦰 *Cliente:* ${name}\n`;
+        message += `📞 *Telefone:* ${phone}\n`;
+        message += `🏠 *Endereço:* ${address}\n`;
+        if (location) {
+            const mapsLink = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
+            message += `📍 *Localização:* ${mapsLink}\n`;
+        }
+        message += `\n📋 *PEDIDO:*\n\n`;
         cart.forEach(item => { message += `▪️ ${item.quantity}x ${item.name} - ${Number(item.price * item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n`; });
-        message += `\n*Subtotal:* ${subtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n*Taxa de Entrega:* ${selectedFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n*Total:* *${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}*\n\n*Forma de Pagamento:* ${paymentMethod}\n`;
-        if (paymentMethod === 'Dinheiro' && changeFor) message += `*Troco para:* ${changeFor}\n`;
-        message += `\nObrigado!`;
+        message += `\n🚚 *TAXA DE ENTREGA:* ${selectedFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n`;
+        message += `\n💵 *TOTAL:* ${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n\n`;
+        
+        let paymentString = paymentMethod;
+        if (paymentMethod === 'Dinheiro' && changeForValue > 0) {
+            paymentString += ` (TROCO P/ ${changeForValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`;
+        }
+        message += `💳 *Forma de pagamento:* ${paymentString}\n`;
+
+        if (changeNeeded > 0) {
+            message += `💵 *Troco necessário:* ${changeNeeded.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}\n`;
+        }
 
         window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, '_blank');
     };
@@ -227,12 +250,13 @@ function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onRemove, whatsapp
                                 {cart.map(item => (
                                     <div key={item.id} className="flex justify-between items-center">
                                         <div className="flex items-center space-x-3"><img src={item.image || 'https://placehold.co/100x100/CCCCCC/FFFFFF?text=Img'} alt={item.name} className="w-16 h-16 object-cover rounded-md"/><div><p className="font-semibold">{item.name}</p><p className="text-sm text-gray-500">{Number(item.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</p></div></div>
-                                        <div className="flex items-center space-x-2"><button onClick={() => updateCartQuantity(item.id, -1)} className="bg-gray-200 dark:bg-gray-600 h-7 w-7 rounded-full">-</button><span>{item.quantity}</span><button onClick={() => updateCartQuantity(item.id, 1)} className="bg-gray-200 dark:bg-gray-600 h-7 w-7 rounded-full">+</button><button onClick={() => removeFromCart(item.id)} className="ml-2 text-red-500"><Trash2 size={18} /></button></div>
+                                        <div className="flex items-center space-x-2"><button onClick={() => onUpdateQuantity(item.id, -1)} className="bg-gray-200 dark:bg-gray-600 h-7 w-7 rounded-full">-</button><span>{item.quantity}</span><button onClick={() => onUpdateQuantity(item.id, 1)} className="bg-gray-200 dark:bg-gray-600 h-7 w-7 rounded-full">+</button><button onClick={() => removeFromCart(item.id)} className="ml-2 text-red-500"><Trash2 size={18} /></button></div>
                                     </div>
                                 ))}
                             </div>
                             <div className="space-y-4 pt-4 border-t border-dashed">
                                  <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome completo" className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-md border focus:ring-2 focus:ring-indigo-500" required />
+                                 <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Seu Telefone (WhatsApp)" className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-md border focus:ring-2 focus:ring-indigo-500" required />
                                  <input type="text" value={address} onChange={e => setAddress(e.target.value)} placeholder="Seu endereço (Rua, N°, Referência)" className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-md border focus:ring-2 focus:ring-indigo-500" required />
                                  
                                  <div className="relative" ref={searchRef}>
@@ -240,19 +264,9 @@ function CartModal({ isOpen, onClose, cart, onUpdateQuantity, onRemove, whatsapp
                                      {isDropdownOpen && (<ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg">{filteredNeighborhoods.length > 0 ? filteredNeighborhoods.map(f => (<li key={f.id} onClick={() => handleSelectNeighborhood(f)} className="px-4 py-2 hover:bg-indigo-100 dark:hover:bg-indigo-600 cursor-pointer">{f.neighborhood} {f.fee > 0 ? `(+ ${f.fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})` : ''}</li>)) : <li className="px-4 py-2 text-gray-500">Nenhum bairro encontrado</li>}</ul>)}
                                  </div>
                                  
-                                 <div>
-                                    <button type="button" onClick={onGetLocation} disabled={locationStatus === 'loading'} className={`w-full p-3 text-white rounded-md flex items-center justify-center transition-colors ${locationStatus === 'success' ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'} disabled:bg-gray-400`}>
-                                        {locationStatus === 'loading' && <Loader2 className="animate-spin mr-2" />}
-                                        {locationStatus !== 'loading' && <MapPin className="mr-2"/>}
-                                        {locationStatus === 'idle' && 'Pegar Localização GPS'}
-                                        {locationStatus === 'loading' && 'Carregando...'}
-                                        {locationStatus === 'success' && 'Localização Capturada!'}
-                                        {locationStatus === 'error' && 'Tentar Novamente'}
-                                    </button>
-                                    <div className="text-xs text-center mt-2 h-4">
-                                        {locationStatus === 'success' && <p className="text-green-600 font-semibold flex items-center justify-center"><CheckCircle size={14} className="mr-1"/>Tudo certo!</p>}
-                                        {locationStatus === 'error' && <p className="text-red-600 font-semibold">Acesso negado. Verifique as permissões do site na barra de endereço.</p>}
-                                    </div>
+                                 <div className={`p-3 rounded-md flex items-center ${location ? 'bg-green-100 dark:bg-green-900' : 'bg-gray-100 dark:bg-gray-700'}`}>
+                                    <MapPin className={`mr-3 ${location ? 'text-green-500' : 'text-gray-500'}`} />
+                                    <div className="flex-grow"><p className="font-semibold">{location ? 'Localização GPS capturada!' : 'Localização não informada'}</p></div>
                                  </div>
 
                                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full p-3 bg-gray-100 dark:bg-gray-700 rounded-md border focus:ring-2 focus:ring-indigo-500">
